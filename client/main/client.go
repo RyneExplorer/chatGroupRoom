@@ -14,8 +14,7 @@ func main() {
 		return
 	}
 	defer conn.Close()
-
-	user.GainID(conn)
+	user.Verify(conn)
 	go user.ReadMessage(conn)
-	user.Option(conn)
+	user.ChatMenuLoop(conn)
 }

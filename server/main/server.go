@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"go_project/src/chat/server/function"
+	"go_project/src/chat/server/service"
 	"net"
 )
 
@@ -15,7 +15,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	go function.BroadcastLoop()
+	go service.BroadcastLoop()
 
 	for {
 		conn, err := listener.Accept()
@@ -23,6 +23,6 @@ func main() {
 			fmt.Println("接受连接失败:", err)
 			continue
 		}
-		go function.HandleClient(conn)
+		go service.ChatRoomEntry(conn)
 	}
 }

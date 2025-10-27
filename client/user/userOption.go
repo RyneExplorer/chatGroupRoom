@@ -9,18 +9,20 @@ import (
 	"time"
 )
 
-const (
-	MsgTypeOnline  = "ONLINE"
-	MsgTypeLeave   = "LEAVE"
-	MsgTypePrivate = "PRIVATE"
-	MsgTypeList    = "LIST"
-)
-
-func Option(conn net.Conn) {
-	scanner := bufio.NewScanner(os.Stdin)
-
+func Verify(conn net.Conn) {
 	for {
+		err := RegisterLogin(conn)
+		if err == nil {
+			break
+		}
+		fmt.Println("认证失败:", err)
+		fmt.Println("请重新尝试...")
+	}
 
+}
+func ChatMenuLoop(conn net.Conn) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
 		fmt.Println("----- 聊天室菜单 -----")
 		fmt.Println("1. 进入聊天室")
 		fmt.Println("2. 退出")
@@ -56,7 +58,7 @@ func Option(conn net.Conn) {
 				sendMessage(conn, MsgTypeList)
 				time.Sleep(time.Millisecond * 10)
 			default:
-				fmt.Println("无效操作，请重新选择")
+				fmt.Println("无效操作，请重新选择!")
 			}
 		}
 	}
@@ -79,23 +81,6 @@ func chatLoop(conn net.Conn, scanner *bufio.Scanner) {
 					return
 				}
 			}
-		}
-	}
-}
-
-// GainID 获取终端用户昵称
-func GainID(conn net.Conn) {
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("请输入您的昵称: ")
-		line, _ := reader.ReadString('\n')
-		id := strings.TrimSpace(line)
-		if id != "" {
-			conn.Write([]byte(id + "\n"))
-			break
-		} else {
-			fmt.Println("昵称不能为空!")
-			continue
 		}
 	}
 }

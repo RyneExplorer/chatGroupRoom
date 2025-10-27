@@ -3,8 +3,8 @@ package user
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
-	"os"
 	"strings"
 )
 
@@ -13,8 +13,7 @@ func ReadMessage(conn net.Conn) {
 	for {
 		msg, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("服务器连接断开:", err)
-			os.Exit(1)
+			log.Fatal("服务器连接断开:", err)
 		}
 		fmt.Println(strings.TrimSpace(msg))
 	}

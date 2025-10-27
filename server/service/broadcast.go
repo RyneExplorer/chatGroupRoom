@@ -1,25 +1,10 @@
-package function
+package service
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"strings"
-	"sync"
-)
-
-type Client struct {
-	Username string
-	Conn     net.Conn
-}
-
-var (
-	users       = make(map[net.Conn]*Client)
-	msgChan     = make(chan string, 10)
-	onlineChan  = make(chan string, 5)
-	leaveChan   = make(chan string, 5)
-	privateChan = make(chan string, 5)
-	listChan    = make(chan net.Conn, 5)
-	lock        = sync.Mutex{}
 )
 
 func BroadcastLoop() {
@@ -53,7 +38,7 @@ func broadcastToAll(msg string) {
 	for conn := range users {
 		_, err := conn.Write([]byte(msg + "\n"))
 		if err != nil {
-			fmt.Println("发送失败:", err)
+			log.Fatal("发送失败:", err)
 		}
 	}
 }
@@ -67,7 +52,10 @@ func sendPrivateMessage(from, to, content string) {
 	for conn, client := range users {
 		if client.Username == to {
 			found = true
-			conn.Write([]byte(fmt.Sprintf("[私聊] %s对你私聊: %s\n", from, content)))
+			_, err := conn.Write([]byte(fmt.Sprintf("[私聊] %s对你私聊: %s\n", from, content)))
+			if err != nil {
+				log.Fatal("发送客户端私聊失败: ", err)
+			}
 		}
 	}
 
