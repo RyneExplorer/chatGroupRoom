@@ -13,7 +13,7 @@ func ReadMessage(conn net.Conn) {
 	for {
 		msg, err := reader.ReadString('\n')
 		if err != nil {
-			log.Fatal("服务器连接断开:", err)
+			log.Fatal("程序错误! 服务器连接断开:", err)
 		}
 		fmt.Println(strings.TrimSpace(msg))
 	}

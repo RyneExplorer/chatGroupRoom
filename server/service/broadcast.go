@@ -38,7 +38,8 @@ func broadcastToAll(msg string) {
 	for conn := range users {
 		_, err := conn.Write([]byte(msg + "\n"))
 		if err != nil {
-			log.Fatal("发送失败:", err)
+			log.Printf("广播发送失败: %v", err)
+			return
 		}
 	}
 }
@@ -54,7 +55,8 @@ func sendPrivateMessage(from, to, content string) {
 			found = true
 			_, err := conn.Write([]byte(fmt.Sprintf("[私聊] %s对你私聊: %s\n", from, content)))
 			if err != nil {
-				log.Fatal("发送客户端私聊失败: ", err)
+				log.Printf("用户 %s 发送私聊失败: %v", from, err)
+				return
 			}
 		}
 	}

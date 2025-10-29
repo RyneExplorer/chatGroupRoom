@@ -21,8 +21,10 @@ type User struct {
 	LastTime   time.Time `db:"last_time" json:"lastTime"`
 }
 type Client struct {
-	Username string
-	Conn     net.Conn
+	Username       string
+	Conn           net.Conn
+	LastActiveTime time.Time
+	mu             sync.Mutex
 }
 
 var (
@@ -32,7 +34,7 @@ var (
 	leaveChan   = make(chan string, 5)
 	privateChan = make(chan string, 5)
 	listChan    = make(chan net.Conn, 5)
-	lock        = sync.Mutex{}
+	lock        = sync.Mutex{} // 全局锁
 )
 
 var (

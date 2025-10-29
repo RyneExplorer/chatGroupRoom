@@ -8,37 +8,8 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 )
-
-func ChatRoomEntry(conn net.Conn) {
-	defer conn.Close()
-
-	var username string
-	reader := bufio.NewReader(conn)
-	// 处理注册/登录请求
-	for {
-		msg, err := reader.ReadString('\n')
-		if err != nil {
-			log.Printf("客户端 %s 在认证阶段断开: %v", conn.RemoteAddr().String(), err)
-			return
-		}
-		msg = strings.TrimSpace(msg)
-
-		username, err = handleAuthMessage(conn, msg)
-		if err == nil {
-			break
-		} else {
-			log.Printf("用户 %s 出现错误: %v", username, err)
-			continue
-		}
-	}
-	// 认证成功后处理聊天消息
-	err := handleChatMessages(conn, username)
-	if err != nil {
-		log.Fatalf("服务端出现错误: %v", err)
-	}
-
-}
 
 func handleAuthMessage(conn net.Conn, msg string) (string, error) {
 	parts := strings.SplitN(msg, ":", 3)
@@ -99,8 +70,9 @@ func sendResponse(conn net.Conn, msg string) {
 
 func handleChatMessages(conn net.Conn, username string) error {
 	client := &Client{
-		Username: username,
-		Conn:     conn,
+		Username:       username,
+		Conn:           conn,
+		LastActiveTime: time.Now(),
 	}
 
 	lock.Lock()
@@ -112,8 +84,12 @@ func handleChatMessages(conn net.Conn, username string) error {
 	for {
 		msg, err := reader.ReadString('\n')
 		if err != nil {
+			log.Printf("读取用户 %s 消息失败: %v", username, err)
 			break
 		}
+		lock.Lock()
+		client.LastActiveTime = time.Now()
+		lock.Unlock()
 		msg = strings.TrimSpace(msg)
 		err = handleClientMessage(client, msg)
 		if err != nil {
@@ -123,14 +99,16 @@ func handleChatMessages(conn net.Conn, username string) error {
 
 	conn.Close()
 	lock.Lock()
+	// 处理客户端异常断开的问题 1.释放user  2.更新用户状态
 	if client, ok := users[conn]; ok {
 		log.Printf("[系统] 用户 %s 异常断开连接\n", client.Username)
 		delete(users, conn)
+		leaveChan <- client.Username
 		err := UpdateStatus(client.Username, LEAVE_STATUS)
 		if err != nil {
+			log.Printf("警告: 更新异常下线用户状态失败!")
 			return err
 		}
-		leaveChan <- client.Username
 	}
 	lock.Unlock()
 	return nil
@@ -148,12 +126,12 @@ func handleClientMessage(client *Client, msg string) error {
 		fmt.Printf("[系统] 用户 %s 退出聊天室\n", client.Username)
 		lock.Lock()
 		delete(users, client.Conn)
-		lock.Unlock()
+		leaveChan <- client.Username
 		err := UpdateStatus(client.Username, LEAVE_STATUS)
 		if err != nil {
 			return ErrUpdateStatusFailed
 		}
-		leaveChan <- client.Username
+		lock.Unlock()
 		client.Conn.Close()
 	case msg == user.MsgTypeList:
 		// 查看在线用户

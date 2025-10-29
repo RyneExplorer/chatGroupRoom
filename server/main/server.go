@@ -15,6 +15,7 @@ func main() {
 	}
 	defer listener.Close()
 
+	go service.HeartBeatCheck()
 	go service.BroadcastLoop()
 
 	for {

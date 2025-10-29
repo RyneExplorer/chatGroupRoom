@@ -55,14 +55,14 @@ func Login(username, password string) error {
 		}
 		return fmt.Errorf("查询数据库失败: %w", err)
 	}
-	if status == 1 {
+	if status == ONLINE_STATUS {
 		return ErrUserIsOnline
 	}
 	if dbPassword != password {
 		return ErrUsernamePassData
 	}
 	// 更新登录时间和用户状态
-	_, err = DB.Exec("update user set last_time = NOW() where username = ?;", username)
+	_, err = DB.Exec("update user set last_login_time = NOW() where username = ?;", username)
 	if err != nil {
 		return fmt.Errorf("更新时间数据失败: %w", err)
 	}
@@ -74,6 +74,13 @@ func Login(username, password string) error {
 }
 func UpdateStatus(username string, status int) error {
 	_, err := DB.Exec("update user set status = ? where username = ?;", status, username)
+	if err != nil {
+		return ErrUpdateStatusFailed
+	}
+	return nil
+}
+func ResetAllUserStatus(status int) error {
+	_, err := DB.Exec("update user set status = ? where status = ?;", status, ONLINE_STATUS)
 	if err != nil {
 		return ErrUpdateStatusFailed
 	}

@@ -14,6 +14,7 @@ func main() {
 		return
 	}
 	defer conn.Close()
+
 	user.Verify(conn)
 	go user.ReadMessage(conn)
 	user.ChatMenuLoop(conn)
