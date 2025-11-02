@@ -35,9 +35,5 @@ func ChatRoomEntry(conn net.Conn) {
 		}
 	}
 	// 认证成功后处理聊天消息
-	err = handleChatMessages(conn, username)
-	if err != nil {
-		log.Fatalf("服务端出现错误: %v", err)
-	}
-
+	handleChatInfo(conn, username)
 }

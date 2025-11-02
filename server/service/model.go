@@ -24,17 +24,19 @@ type Client struct {
 	Username       string
 	Conn           net.Conn
 	LastActiveTime time.Time
-	mu             sync.Mutex
+	Mu             sync.Mutex
+	Level          int
 }
 
 var (
-	users       = make(map[net.Conn]*Client)
-	msgChan     = make(chan string, 10)
-	onlineChan  = make(chan string, 5)
-	leaveChan   = make(chan string, 5)
-	privateChan = make(chan string, 5)
-	listChan    = make(chan net.Conn, 5)
-	lock        = sync.Mutex{} // 全局锁
+	Users       = make(map[net.Conn]*Client)
+	MsgChan     = make(chan string, 10)
+	OnlineChan  = make(chan string, 5)
+	LeaveChan   = make(chan string, 5)
+	PrivateChan = make(chan string, 5)
+	ListChan    = make(chan net.Conn, 5)
+	LevelChan   = make(chan string, 5)
+	Lock        = sync.Mutex{}
 )
 
 var (

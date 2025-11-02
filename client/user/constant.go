@@ -7,4 +7,5 @@ const (
 	MsgTypeLeave    = "LEAVE"
 	MsgTypePrivate  = "PRIVATE"
 	MsgTypeList     = "LIST"
+	MsgTypeRank     = "RANK"
 )

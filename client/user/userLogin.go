@@ -3,6 +3,7 @@ package user
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -23,12 +24,14 @@ func RegisterLogin(conn net.Conn) error {
 			case "1":
 				err := login(conn, MsgTypeLogin)
 				if err != nil {
+					log.Printf("程序错误! %v", err)
 					continue
 				}
 				return nil
 			case "2":
 				err := register(conn, MsgTypeRegister)
 				if err != nil {
+					log.Printf("程序错误! %v", err)
 					continue
 				}
 				return nil
@@ -84,7 +87,7 @@ func register(conn net.Conn, msgType string) error {
 	// 响应服务器结果
 	response, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("读取服务器响应失败: %w", err)
+		return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
 	}
 	response = strings.TrimSpace(response)
 	if strings.HasPrefix(response, "注册成功!") {
@@ -118,7 +121,7 @@ func login(conn net.Conn, msgType string) error {
 	// 响应服务端
 	response, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("读取服务器响应失败: %w", err)
+		return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
 	}
 	response = strings.TrimSpace(response)
 

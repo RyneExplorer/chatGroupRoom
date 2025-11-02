@@ -3,6 +3,7 @@ package user
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -18,7 +19,6 @@ func Verify(conn net.Conn) {
 		fmt.Println("认证失败:", err)
 		fmt.Println("请重新尝试...")
 	}
-
 }
 func ChatMenuLoop(conn net.Conn) {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -28,6 +28,7 @@ func ChatMenuLoop(conn net.Conn) {
 		fmt.Println("2. 退出")
 		fmt.Println("3. 私聊用户")
 		fmt.Println("4. 查看在线用户")
+		fmt.Println("5. 查看用户活跃度排名")
 		fmt.Println("请选择操作: ")
 
 		if scanner.Scan() {
@@ -42,21 +43,24 @@ func ChatMenuLoop(conn net.Conn) {
 			case "3":
 				fmt.Print("请输入对方用户名: ")
 				if !scanner.Scan() {
-					fmt.Println("获取用户名失败!")
+					log.Println("[系统] 获取用户名失败!")
 					return
 				}
 				target := strings.TrimSpace(scanner.Text())
 				fmt.Print("请输入私聊内容: ")
 				if !scanner.Scan() {
-					fmt.Println("读取消息失败!")
+					log.Println("[系统] 读取消息失败!")
 					return
 				}
 				content := strings.TrimSpace(scanner.Text())
 				sendPrivateMessage(conn, target, content)
-				time.Sleep(time.Millisecond * 10)
+				time.Sleep(100 * time.Millisecond)
 			case "4":
 				sendMessage(conn, MsgTypeList)
-				time.Sleep(time.Millisecond * 10)
+				time.Sleep(100 * time.Millisecond)
+			case "5":
+				CheckActivityRank(conn, MsgTypeRank)
+				time.Sleep(100 * time.Millisecond)
 			default:
 				fmt.Println("无效操作，请重新选择!")
 			}
@@ -77,7 +81,7 @@ func chatLoop(conn net.Conn, scanner *bufio.Scanner) {
 			if msg != "" {
 				_, err := conn.Write([]byte(msg + "\n"))
 				if err != nil {
-					fmt.Println("发送失败:", err)
+					log.Println("[系统] 发送失败!")
 					return
 				}
 			}
@@ -88,7 +92,7 @@ func chatLoop(conn net.Conn, scanner *bufio.Scanner) {
 func sendMessage(conn net.Conn, msgType string) {
 	_, err := conn.Write([]byte(msgType + "\n"))
 	if err != nil {
-		fmt.Println("发送失败:", err)
+		log.Println("[系统] 发送消息失败!")
 	}
 }
 
@@ -96,6 +100,13 @@ func sendPrivateMessage(conn net.Conn, target, content string) {
 	msg := MsgTypePrivate + ":" + target + ":" + content
 	_, err := conn.Write([]byte(msg + "\n"))
 	if err != nil {
-		fmt.Println("私聊发送失败:", err)
+		log.Println("[系统] 私聊发送消息失败!")
+	}
+}
+
+func CheckActivityRank(conn net.Conn, msgType string) {
+	_, err := conn.Write([]byte(msgType + "\n"))
+	if err != nil {
+		log.Println("[系统] 查看活跃度排行失败!")
 	}
 }

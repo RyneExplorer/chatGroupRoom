@@ -6,25 +6,25 @@ import (
 )
 
 func HeartBeatCheck() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
 		now := time.Now()
-		lock.Lock()
-		for conn, client := range users {
+		Lock.Lock()
+		for conn, client := range Users {
 			// client内部锁保证读取时间正确
-			client.mu.Lock()
+			client.Mu.Lock()
 			duration := now.Sub(client.LastActiveTime)
-			client.mu.Unlock()
-			if duration > 2*time.Minute {
-				conn.Write([]byte("[系统] 超时: 您长时间未任何操作! 连接已自动断开!\n"))
+			client.Mu.Unlock()
+			if duration > 10*time.Minute {
+				conn.Write([]byte("[系统] 超时: 你长时间未任何操作! 连接已自动断开!\n"))
 				client.Conn.Close()
-				delete(users, client.Conn)
+				delete(Users, client.Conn)
 				log.Printf("[系统] 用户 %s 长时间未活跃, 自动断开", client.Username)
-			} else if duration > 1*time.Minute {
+			} else if duration > 15*time.Minute {
 				conn.Write([]byte("[系统] 注意: 请保持活跃状态!\n"))
 			}
 		}
-		lock.Unlock()
+		Lock.Unlock()
 	}
 }
