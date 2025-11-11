@@ -3,7 +3,6 @@ package user
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -24,14 +23,16 @@ func RegisterLogin(conn net.Conn) error {
 			case "1":
 				err := login(conn, MsgTypeLogin)
 				if err != nil {
-					log.Printf("程序错误! %v", err)
+					fmt.Printf("[系统] 登录失败! %v\n", err)
+					fmt.Println()
 					continue
 				}
 				return nil
 			case "2":
 				err := register(conn, MsgTypeRegister)
 				if err != nil {
-					log.Printf("程序错误! %v", err)
+					fmt.Printf("[系统] 注册失败! %v\n", err)
+					fmt.Println()
 					continue
 				}
 				return nil
@@ -79,15 +80,24 @@ func register(conn net.Conn, msgType string) error {
 	}
 
 	msg := fmt.Sprintf("%s:%s:%s", msgType, username, password)
-	_, err := conn.Write([]byte(msg + "\n"))
-	if err != nil {
-		return fmt.Errorf("发送注册信息失败: %w", err)
-	}
+	//_, err := conn.Write([]byte(msg + "\n"))
+	//if err != nil {
+	//	return fmt.Errorf("服务端异常, 请稍后重试... %w", err)
+	//}
+	//
+	//// 响应服务器结果
+	//response, err := bufio.NewReader(conn).ReadString('\n')
+	//if err != nil {
+	//	return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
+	//}
 
+	if err := writeMessage(conn, msg); err != nil {
+		return fmt.Errorf("发送注册请求失败: %w", err)
+	}
 	// 响应服务器结果
-	response, err := bufio.NewReader(conn).ReadString('\n')
+	response, err := readMessage(conn)
 	if err != nil {
-		return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
+		return fmt.Errorf("等待服务器响应失败: %w", err)
 	}
 	response = strings.TrimSpace(response)
 	if strings.HasPrefix(response, "注册成功!") {
@@ -95,7 +105,6 @@ func register(conn net.Conn, msgType string) error {
 		fmt.Println()
 		return nil
 	} else {
-		fmt.Println("[系统] 注册失败: ", response+"\n")
 		return fmt.Errorf("%s", response)
 	}
 }
@@ -113,15 +122,24 @@ func login(conn net.Conn, msgType string) error {
 
 	// 发送登录请求
 	msg := fmt.Sprintf("%s:%s:%s", msgType, username, password)
-	_, err := conn.Write([]byte(msg + "\n"))
-	if err != nil {
-		return fmt.Errorf("发送登录信息失败: %w", err)
+	//_, err := conn.Write([]byte(msg + "\n"))
+	//if err != nil {
+	//	return fmt.Errorf("服务端异常, 请稍后重试... %w", err)
+	//}
+	//
+	//// 响应服务端
+	//response, err := bufio.NewReader(conn).ReadString('\n')
+	//if err != nil {
+	//	return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
+	//}
+
+	if err := writeMessage(conn, msg); err != nil {
+		return fmt.Errorf("发送注册请求失败: %w", err)
 	}
 
-	// 响应服务端
-	response, err := bufio.NewReader(conn).ReadString('\n')
+	response, err := readMessage(conn)
 	if err != nil {
-		return fmt.Errorf("服务器响应出错! 请稍后重试... %w", err)
+		return fmt.Errorf("等待服务器响应失败: %w", err)
 	}
 	response = strings.TrimSpace(response)
 
@@ -130,7 +148,6 @@ func login(conn net.Conn, msgType string) error {
 		fmt.Println()
 		return nil
 	} else {
-		fmt.Println("[系统] 登录失败: ", response+"\n")
 		return fmt.Errorf("%s", response)
 	}
 }

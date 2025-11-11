@@ -12,6 +12,27 @@ import (
 	"time"
 )
 
+func authenticateUser(conn net.Conn) (string, error) {
+	reader := bufio.NewReader(conn)
+	for {
+		msg, err := readMessage(reader)
+		if err != nil {
+			return conn.RemoteAddr().String(), fmt.Errorf("客户端 %s 在认证阶段断开: %w", conn.RemoteAddr().String(), err)
+		}
+
+		msg = strings.TrimSpace(msg)
+
+		// 调用handleAuthMessage进行具体的认证处理并获取认证用户名
+		username, err := handleAuthMessage(conn, msg)
+		if err == nil {
+			return username, nil
+		} else {
+			log.Printf("用户 %s 认证时出现错误: %v", username, err)
+			continue
+		}
+	}
+}
+
 func handleAuthMessage(conn net.Conn, msg string) (string, error) {
 	parts := strings.SplitN(msg, ":", 3)
 	if len(parts) != 3 {
@@ -63,8 +84,7 @@ func handleAuthMessage(conn net.Conn, msg string) (string, error) {
 
 // 响应客户端登录注册功能
 func sendResponse(conn net.Conn, msg string) {
-	_, err := conn.Write([]byte(msg + "\n"))
-	if err != nil {
+	if err := writeMessage(conn, msg); err != nil {
 		log.Printf("服务端响应出错: %v", err)
 	}
 }
@@ -81,13 +101,17 @@ func handleChatInfo(conn net.Conn, username string) {
 	Lock.Unlock()
 
 	fmt.Printf("[系统] 用户 %s 连接成功\n", username)
-	level, cur, next := GetUserLevelAndProgress(getUserLevel(client.Username), int(GetScore(client.Username)))
+	level, cur, next := getUserLevelAndProgress(getUserLevel(client.Username), int(GetScore(client.Username)))
 	info := "\n-----------------------\n"
 	info += fmt.Sprintf("[系统] 欢迎回来! %s\n你当前活跃度等级为Lv.%d (%d/%d)\n", client.Username, level, cur, next)
-	conn.Write([]byte(info))
+	// conn.Write([]byte(info))
+	err := writeMessage(conn, info)
+	if err != nil {
+		log.Printf("发送用户 %s 消息失败: %v", client.Username, err)
+	}
 	reader := bufio.NewReader(conn)
 	for {
-		msg, err := reader.ReadString('\n')
+		msg, err := readMessage(reader)
 		if err != nil {
 			break
 		}
@@ -107,7 +131,7 @@ func handleChatInfo(conn net.Conn, username string) {
 		LeaveChan <- client.Username
 		err := UpdateStatus(client.Username, LEAVE_STATUS)
 		if err != nil {
-			log.Printf("警告: 更新异常下线用户状态失败: %v", err)
+			log.Printf("警告: 更新异常下线用户 %s 状态失败: %v", client.Username, err)
 		}
 	}
 	Lock.Unlock()
@@ -119,6 +143,12 @@ func handleClientMessage(client *Client, msg string) {
 		// 用户上线通知
 		fmt.Printf("[系统] 用户 %s 进入聊天室\n", client.Username)
 		OnlineChan <- client.Username
+
+		// 展示用户历史消息(10条)
+		err := showHistoryMessage(client)
+		if err != nil {
+			log.Printf("%v", err)
+		}
 	case msg == user.MsgTypeLeave:
 		// 用户离开
 		fmt.Printf("[系统] 用户 %s 退出\n", client.Username)
@@ -148,13 +178,28 @@ func handleClientMessage(client *Client, msg string) {
 		err := showRank(client)
 		if err != nil {
 			log.Printf("%v", err)
-			client.Conn.Write([]byte("获取活跃度排名失败! 请稍后重试...\n"))
+			client.Conn.Write([]byte("获取活跃度排名失败! 请稍后重试..."))
 		}
 	default:
 		// 公共群聊消息
 		fmt.Printf("[群聊] 用户 %s 发送: %s\n", client.Username, msg)
-		MsgChan <- fmt.Sprintf("%s: %s", client.Username, msg)
-		CheckUserLevel(client)
+		// 添加消息到stream
+		addPublicMessage(client, msg)
+		// MsgChan <- fmt.Sprintf("%s: %s", client.Username, msg)
+		// 检查用户是否升级
+		checkUserLevel(client)
+	}
+}
+func addPublicMessage(client *Client, msg string) {
+	chatMsg := &ChatMessage{
+		Username:  client.Username,
+		Message:   msg,
+		Type:      MessageTypePublic,
+		CreatedAt: time.Now(),
+	}
+	err := chatMsg.AddToStream(streamNameChat)
+	if err != nil {
+		log.Printf("%v", err)
 	}
 }
 func showRank(client *Client) error {
@@ -170,7 +215,11 @@ func showRank(client *Client) error {
 		level := getUserLevel(val)
 		rank += fmt.Sprintf("%d. %-*s Lv%d\n", i+1, NameWidth, val, level)
 	}
-	client.Conn.Write([]byte(rank + "\n"))
+	// client.Conn.Write([]byte(rank + "\n"))
+	err = writeMessage(client.Conn, rank)
+	if err != nil {
+		log.Printf("%v", err)
+	}
 	return nil
 }
 
@@ -184,7 +233,7 @@ func ScoreExpToLevel(level int) (score int) {
 }
 
 // GetNewLevel 获取用户活跃度新等级
-func GetNewLevel(level, score int) int {
+func getNewLevel(level, score int) int {
 	for ScoreExpToLevel(level) <= score {
 		level++
 	}
@@ -192,7 +241,7 @@ func GetNewLevel(level, score int) int {
 }
 
 // GetUserLevelAndProgress 检查当前用户等级和经验
-func GetUserLevelAndProgress(level, score int) (int, int, int) {
+func getUserLevelAndProgress(level, score int) (int, int, int) {
 	if score < 5 {
 		return 1, score, 5
 	}
@@ -204,7 +253,7 @@ func GetUserLevelAndProgress(level, score int) (int, int, int) {
 	return level, currentExp, nextExp
 }
 
-func CheckUserLevel(client *Client) {
+func checkUserLevel(client *Client) {
 	// 增加用户活跃度
 	err := AddUserActivity(client)
 	if err != nil {
@@ -213,7 +262,7 @@ func CheckUserLevel(client *Client) {
 	// 判断用户是否升级
 	oldLevel := getUserLevel(client.Username)
 	score := GetScore(client.Username)
-	newLevel := GetNewLevel(oldLevel, int(score))
+	newLevel := getNewLevel(oldLevel, int(score))
 	if newLevel > oldLevel {
 		msg := fmt.Sprintf("[系统] 恭喜用户 %s 等级提升! Lv.%d --> Lv.%d", client.Username, oldLevel, newLevel)
 		LevelChan <- msg
@@ -224,4 +273,25 @@ func CheckUserLevel(client *Client) {
 			client.Level = newLevel
 		}
 	}
+}
+
+func showHistoryMessage(client *Client) error {
+	message, err := GetHistoryMessage()
+	if err != nil {
+		return fmt.Errorf("用户 %s 获取历史消息失败: %w", client.Username, err)
+	}
+	Lock.Lock()
+	historyMsg := "\n------以下是历史消息------\n"
+	for _, chatMsg := range message {
+		historyMsg += fmt.Sprintf("[历史消息] %s %s: %s\n",
+			chatMsg.CreatedAt.Format("2006-01-02 15:04:05"), chatMsg.Username, chatMsg.Message)
+	}
+	historyMsg += "\n------以下是实时消息------"
+	//client.Conn.Write([]byte(historyMsg + "\n"))
+	err = writeMessage(client.Conn, historyMsg)
+	if err != nil {
+		log.Printf("%v", err)
+	}
+	Lock.Unlock()
+	return nil
 }

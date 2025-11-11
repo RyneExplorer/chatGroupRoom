@@ -79,34 +79,34 @@ func chatLoop(conn net.Conn, scanner *bufio.Scanner) {
 				return
 			}
 			if msg != "" {
-				_, err := conn.Write([]byte(msg + "\n"))
-				if err != nil {
-					log.Println("[系统] 发送失败!")
+				if err := writeMessage(conn, msg); err != nil {
+					log.Printf("[系统] 发送失败: %v", err)
 					return
 				}
+				//_, err := conn.Write([]byte(msg + "\n"))
+				//if err != nil {
+				//	log.Println("[系统] 发送失败!")
+				//	return
+				//}
 			}
 		}
 	}
 }
-
 func sendMessage(conn net.Conn, msgType string) {
-	_, err := conn.Write([]byte(msgType + "\n"))
-	if err != nil {
-		log.Println("[系统] 发送消息失败!")
+	if err := writeMessage(conn, msgType); err != nil {
+		fmt.Println("[系统] 发送消息失败: ", err)
 	}
 }
 
 func sendPrivateMessage(conn net.Conn, target, content string) {
 	msg := MsgTypePrivate + ":" + target + ":" + content
-	_, err := conn.Write([]byte(msg + "\n"))
-	if err != nil {
-		log.Println("[系统] 私聊发送消息失败!")
+	if err := writeMessage(conn, msg); err != nil {
+		fmt.Println("[系统] 私聊发送失败: ", err)
 	}
 }
 
 func CheckActivityRank(conn net.Conn, msgType string) {
-	_, err := conn.Write([]byte(msgType + "\n"))
-	if err != nil {
-		log.Println("[系统] 查看活跃度排行失败!")
+	if err := writeMessage(conn, msgType); err != nil {
+		fmt.Println("[系统] 请求活跃度排行失败: ", err)
 	}
 }

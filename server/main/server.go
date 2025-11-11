@@ -17,7 +17,7 @@ func main() {
 
 	go service.HeartBeatCheck()
 	go service.BroadcastLoop()
-
+	go service.BroadcastFromStreamLoop()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

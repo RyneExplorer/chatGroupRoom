@@ -23,4 +23,14 @@ func init() {
 		Addr: "localhost:6379",
 		DB:   2,
 	})
+
+	// 优先重置数据库用户状态
+	err = ResetAllUserStatus(LEAVE_STATUS)
+	if err != nil {
+		log.Printf("重置用户状态失败: %v", err)
+		return
+	}
+
+	// 创建消费者组
+	InitConsumerGroup()
 }

@@ -7,9 +7,15 @@ import (
 	"time"
 )
 
+// MessageType 定义消息类型
+type MessageType string
+
 const (
-	LEAVE_STATUS  = 0
-	ONLINE_STATUS = 1
+	LEAVE_STATUS                   = 0
+	ONLINE_STATUS                  = 1
+	MessageTypePublic  MessageType = "public"  // 群聊消息
+	MessageTypePrivate MessageType = "private" // 私聊消息
+	MessageTypeEvent   MessageType = "event"   // 事件消息 (用户上线、下线等)
 )
 
 type User struct {
@@ -27,10 +33,22 @@ type Client struct {
 	Mu             sync.Mutex
 	Level          int
 }
+type ChatMessage struct {
+	Username  string      `json:"user"`
+	Message   string      `json:"msg"`
+	Type      MessageType `json:"type"`
+	CreatedAt time.Time   `json:"time"`
+}
 
 var (
-	Users       = make(map[net.Conn]*Client)
-	MsgChan     = make(chan string, 10)
+	streamNameChat = "chatStream"
+	groupName      = "chatGroup"
+	consumerName1  = "consumer-1"
+)
+
+var (
+	Users = make(map[net.Conn]*Client)
+	// MsgChan     = make(chan string, 10)
 	OnlineChan  = make(chan string, 5)
 	LeaveChan   = make(chan string, 5)
 	PrivateChan = make(chan string, 5)
@@ -41,7 +59,7 @@ var (
 
 var (
 	ErrUsernameExists     = errors.New("用户名已存在")
-	ErrUsernameNotExists  = errors.New("用户名已存在")
+	ErrUsernameNotExists  = errors.New("用户名不存在")
 	ErrInvalidInput       = errors.New("用户名或密码不能为空")
 	ErrUsernamePassData   = errors.New("密码错误")
 	ErrUserIsOnline       = errors.New("用户已经上线")

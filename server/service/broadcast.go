@@ -4,14 +4,20 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"runtime/debug"
 	"strings"
 )
 
 func BroadcastLoop() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("广播协程出现panic... %v\n%s", err, debug.Stack())
+		}
+	}()
 	for {
 		select {
-		case msg := <-MsgChan:
-			broadcastToAll(fmt.Sprintf("[群聊] %s", msg))
+		//case msg := <-MsgChan:
+		//	broadcastToAll(fmt.Sprintf("[群聊] %s", msg))
 		case online := <-OnlineChan:
 			broadcastToAll(fmt.Sprintf("[系统] 用户 %s 加入了聊天室", online))
 		case leave := <-LeaveChan:
@@ -38,11 +44,17 @@ func broadcastToAll(msg string) {
 	defer Lock.Unlock()
 
 	for conn := range Users {
-		_, err := conn.Write([]byte(msg + "\n"))
+		err := writeMessage(conn, msg)
 		if err != nil {
 			log.Printf("广播发送失败: %v", err)
 			return
 		}
+
+		//_, err := conn.Write([]byte(msg + "\n"))
+		//if err != nil {
+		//	log.Printf("广播发送失败: %v", err)
+		//	return
+		//}
 	}
 }
 
@@ -55,7 +67,7 @@ func sendPrivateMessage(from, to, content string) {
 	for conn, client := range Users {
 		if client.Username == to {
 			found = true
-			_, err := conn.Write([]byte(fmt.Sprintf("[私聊] %s对你私聊: %s\n", from, content)))
+			err := writeMessage(conn, fmt.Sprintf("[私聊] 用户 %s 对你私聊: %s", from, content))
 			if err != nil {
 				log.Printf("用户 %s 发送私聊失败: %v", from, err)
 				return
@@ -67,7 +79,11 @@ func sendPrivateMessage(from, to, content string) {
 	if !found {
 		for conn, client := range Users {
 			if client.Username == from {
-				conn.Write([]byte(fmt.Sprintf("[系统] 用户 %s 离线, 发送失败!\n"+"\n", to)))
+				err := writeMessage(conn, fmt.Sprintf("[系统] 用户 %s 离线, 发送失败!", to))
+				if err != nil {
+					log.Printf("广播发送失败: %v", err)
+					return
+				}
 				break
 			}
 		}
@@ -83,5 +99,9 @@ func sendUserList(conn net.Conn) {
 	for _, client := range Users {
 		list += fmt.Sprintf("- %s\n", client.Username)
 	}
-	conn.Write([]byte(list + "\n"))
+	err := writeMessage(conn, list)
+	if err != nil {
+		log.Printf("发送在线用户列表失败: %v", err)
+		return
+	}
 }
