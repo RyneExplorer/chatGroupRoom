@@ -57,21 +57,21 @@ func UpdateUserLoginTimeAndStatus(username string) error {
 	}
 	err = UpdateStatus(username, ONLINE_STATUS)
 	if err != nil {
-		return ErrUpdateStatusFailed
+		return err
 	}
 	return nil
 }
 func UpdateStatus(username string, status int) error {
 	_, err := DB.Exec("update user set status = ? where username = ?;", status, username)
 	if err != nil {
-		return ErrUpdateStatusFailed
+		return err
 	}
 	return nil
 }
 func ResetAllUserStatus(status int) error {
 	_, err := DB.Exec("update user set status = ? where status = ?;", status, ONLINE_STATUS)
 	if err != nil {
-		return ErrUpdateStatusFailed
+		return err
 	}
 	return nil
 }
