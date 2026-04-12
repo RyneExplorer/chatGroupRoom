@@ -1,0 +1,53 @@
+# 构建阶段
+
+# 从官方的golang:1.23-alpine镜像开始构建
+# alpine表示使用基于Alpine Linux的轻量级基础镜像
+# AS builder 给这个构建阶段起一个名字叫builder，后续可以在其他阶段引用它
+FROM golang:alpine AS builder
+
+# 设置工作目录为 /app  后续所有命令（如 COPY、RUN）都会在这个目录下执行
+WORKDIR /app
+
+# 设置Go模块代理为国内的 https://goproxy.cn 加快依赖下载速度
+# ,direct 表示如果代理无法获取某个模块，则直接连接源站
+ENV GOPROXY=https://goproxy.cn,direct
+
+# 将本地项目根目录下的go.mod和go.sum文件复制到容器中的当前工作目录（即 /app）
+# 这样做是为了提前下载依赖，利用Docker的缓存机制：只要go.mod和go.sum没变，就不需要重新下载依赖
+COPY go.mod go.sum ./
+
+#下载项目所需的所有 Go 模块依赖到容器中
+RUN go mod download
+
+# 将本地项目根目录下的所有文件（包括源代码）复制到容器的 /app 目录中
+COPY . .
+
+# 编译 Go 程序：
+    # CGO_ENABLED=0：禁用 CGO，使得编译出的是纯静态二进制文件，不依赖系统动态库，更适合在 Alpine 等最小化系统中运行
+    # GOOS=linux：指定目标操作系统为 Linux
+    # GOARCH=amd64：指定目标 CPU 架构为 amd64
+    # go build -o /app/chat-server：将编译结果输出为 /app/chat-server 可执行文件
+    # ./server/main：指定入口源码包路径 也就是main包下的server.go文件
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/chat-server ./server/main
+
+# 运行阶段
+
+# 开始一个新的构建阶段，使用更小的 alpine:latest 作为基础镜像（不包含 Go 编译环境）
+# 目的是只保留运行程序所需的最小环境，大幅减小最终镜像体积
+FROM alpine:latest
+
+# 安装 ca-certificates 包，提供 SSL/TLS 证书信任链
+# --no-cache 表示不保留 apk 的缓存，避免增大镜像体积
+# 这对需要发起 HTTPS 请求（如调用 API、访问数据库等）的程序是必需的
+RUN apk --no-cache add ca-certificates
+
+# 从前面定义的 builder 阶段中，复制编译好的 /app/chat-server 二进制文件到当前镜像的根目录（. 即 /）
+# 这是多阶段构建的核心：只拷贝最终需要的产物，丢弃所有构建工具和中间文件
+COPY --from=builder /app/chat-server .
+
+# 声明容器在运行时会监听 15000 端口
+# 注意：EXPOSE 只是文档化作用，实际端口映射需在 docker run -p 时指定
+EXPOSE 15000
+
+# 设置容器启动时默认执行的命令：运行 ./chat-server 程序
+CMD ["./chat-server"]
