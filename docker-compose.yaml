@@ -14,7 +14,7 @@ services:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
       - MYSQL_USER=root
-      - MYSQL_PASSWORD=123456
+      - MYSQL_PASSWORD=password
       - MYSQL_DATABASE=chat
       # Redis 配置
       - REDIS_ADDR=redis:6379
@@ -33,7 +33,7 @@ services:
     container_name: chat-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_ROOT_PASSWORD: ""
       MYSQL_DATABASE: chat
       MYSQL_USER: root
     healthcheck:
