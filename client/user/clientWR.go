@@ -1,6 +1,6 @@
 package user
 
-//在代码里增添或修改一些bug
+//在代码里增或修改一些bug
 
 import (
 	"bufio"
