@@ -3,10 +3,8 @@ package user
 //在代码里增或修改一些bug
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 )
 
@@ -27,26 +25,4 @@ func writeMessage(conn net.Conn, msg string) error {
 		return fmt.Errorf("写入消息内容失败: %w", err)
 	}
 	return fmt.Errorf("无错误")
-}
-func readMessage(conn net.Conn) (string, error) {
-	reader := bufio.NewReader(conn)
-
-	// 读4字节长度
-	lengthBytes := make([]byte, 4)
-	if _, err := io.ReadFull(reader, lengthBytes); err != nil {
-		return "", fmt.Errorf("读取消息长度失败: %w", err)
-	}
-
-	msgLength := int(binary.BigEndian.Uint32(lengthBytes))
-	if msgLength <= 0 {
-		return "", fmt.Errorf("非法消息长度: %d", msgLength)
-	}
-
-	// 读取消息体
-	msgBytes := make([]byte, msgLength)
-	if _, err := io.ReadFull(reader, msgBytes); err != nil {
-		return "", fmt.Errorf("读取消息内容失败: %w", err)
-	}
-
-	return string(msgBytes), nil
 }
