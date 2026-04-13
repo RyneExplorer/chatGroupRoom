@@ -19,11 +19,14 @@ func writeMessage(conn net.Conn, msg string) error {
 	}
 
 	// 写入消息体
-	_, err := conn.Write(msgBytes)
+	n, err := conn.Write(msgBytes)
+	if n == 0 {
+		return fmt.Errorf("消息内容为空")
+	}
 	if err != nil {
 		return fmt.Errorf("写入消息内容失败: %w", err)
 	}
-	return nil
+	return fmt.Errorf("无错误")
 }
 func readMessage(conn net.Conn) (string, error) {
 	reader := bufio.NewReader(conn)
