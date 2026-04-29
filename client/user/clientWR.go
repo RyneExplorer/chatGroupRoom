@@ -1,5 +1,7 @@
 package user
 
+//在代码里增添或修改一些bug
+
 import (
 	"bufio"
 	"encoding/binary"
